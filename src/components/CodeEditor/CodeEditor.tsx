@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from "react";
 import CodeEditorWindow from "./CodeEditorWindow";
 import axios from "axios";
-import { classnames } from "../utils/general";
-import { languageOptions } from "../constants/languageOptions";
+import { classnames } from "../../utils/general";
+import { languageOptions } from "../../constants/languageOptions";
 
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import { defineTheme } from "../lib/defineTheme";
-import useKeyPress from "../hooks/useKeyPress";
+import { defineTheme } from "../../lib/defineTheme";
+import useKeyPress from "../../hooks/useKeyPress";
 import Footer from "./Footer";
 import OutputWindow from "./OutputWindow";
 import CustomInput from "./CustomInput";
 import OutputDetails from "./OutputDetails";
 import ThemeDropdown from "./ThemeDropdown";
 import LanguagesDropdown from "./LanguagesDropdown";
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
+import PauseIcon from '@mui/icons-material/Pause';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 const javascriptDefault = `/**
 * Problem: Binary Search: Search a sorted array for a target value.
@@ -46,18 +49,47 @@ const target = 5;
 console.log(binarySearch(arr, target));
 `;
 
-const Landing = () => {
+type Props = {
+  /**
+   * Called everytime anything written on the code editor
+   */
+  handleChange: (code: string) => void,
+  /** Activtes right after user clicks compile */
+  onCompile?: () => void,
+  /** This will enable editor for recording, contains necessary functions and values for recording */
+  recording?: {
+    /**
+     * Defines whether the Code Editor is in recording mode
+     */
+    recordingMode: boolean,
+    /** Current state of recording, stopped/recording/paused */
+    recordState: "recording" | "stopped" | "paused" | null,
+    /** Handler function to execute operations start,stop,pause,resume */
+    recordingControllers: {
+      startRecording: () => void, 
+      stopRecording: () => void, 
+      pauseRecording: () => void, 
+      resumeRecording: () => void
+    } | null
+  }
+};
+/*
+  - By passing true in recordingMode, CodeEditor can be used to record screencast
+  - recordState defines, whether recorder is recording/paused/stopped 
+  - recordingControllers contains 4 functions startRecording, stopRecording, pauseRecording, resumeRecording
+*/
+const CodeEditor = ({ handleChange, onCompile, recording }: Props) => {
   const [code, setCode] = useState(javascriptDefault);
   const [customInput, setCustomInput] = useState("");
   const [outputDetails, setOutputDetails] = useState(null);
-  const [processing, setProcessing] = useState(null);
-  const [theme, setTheme] = useState("cobalt");
+  const [processing, setProcessing] = useState<boolean | null>(null);
+  const [theme, setTheme] = useState<any>("cobalt");
   const [language, setLanguage] = useState(languageOptions[0]);
 
   const enterPress = useKeyPress("Enter");
   const ctrlPress = useKeyPress("Control");
 
-  const onSelectChange = (sl) => {
+  const onSelectChange = (sl: any) => {
     console.log("selected Option...", sl);
     setLanguage(sl);
   };
@@ -69,7 +101,10 @@ const Landing = () => {
       handleCompile();
     }
   }, [ctrlPress, enterPress]);
-  const onChange = (action, data) => {
+  useEffect(() => {
+    handleChange(code)
+  }, [code])
+  const onChange = (action: any, data: any) => {
     switch (action) {
       case "code": {
         setCode(data);
@@ -81,6 +116,7 @@ const Landing = () => {
     }
   };
   const handleCompile = () => {
+    if (onCompile) onCompile()
     setProcessing(true);
     const formData = {
       language_id: language.id,
@@ -88,7 +124,7 @@ const Landing = () => {
       source_code: btoa(code),
       stdin: btoa(customInput),
     };
-    const options = {
+    const options: any = {
       method: "POST",
       url: process.env.REACT_APP_RAPID_API_URL,
       params: { base64_encoded: "true", fields: "*" },
@@ -103,7 +139,7 @@ const Landing = () => {
 
     axios
       .request(options)
-      .then(function (response) {
+      .then(function (response: any) {
         console.log("res.data", response.data);
         const token = response.data.token;
         checkStatus(token);
@@ -126,8 +162,8 @@ const Landing = () => {
       });
   };
 
-  const checkStatus = async (token) => {
-    const options = {
+  const checkStatus = async (token: string) => {
+    const options: any = {
       method: "GET",
       url: process.env.REACT_APP_RAPID_API_URL + "/" + token,
       params: { base64_encoded: "true", fields: "*" },
@@ -161,7 +197,7 @@ const Landing = () => {
     }
   };
 
-  function handleThemeChange(th) {
+  function handleThemeChange(th: any) {
     const theme = th;
     console.log("theme...", theme);
 
@@ -177,7 +213,7 @@ const Landing = () => {
     );
   }, []);
 
-  const showSuccessToast = (msg) => {
+  const showSuccessToast = (msg: string) => {
     toast.success(msg || `Compiled Successfully!`, {
       position: "top-right",
       autoClose: 1000,
@@ -188,7 +224,7 @@ const Landing = () => {
       progress: undefined,
     });
   };
-  const showErrorToast = (msg, timer) => {
+  const showErrorToast = (msg?: string, timer?: number) => {
     toast.error(msg || `Something went wrong! Please try again.`, {
       position: "top-right",
       autoClose: timer ? timer : 1000,
@@ -214,35 +250,6 @@ const Landing = () => {
         pauseOnHover
       />
 
-      <a
-        href="https://github.com/manuarora700/react-code-editor"
-        title="Fork me on GitHub"
-        class="github-corner"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <svg
-          width="50"
-          height="50"
-          viewBox="0 0 250 250"
-          className="relative z-20 h-20 w-20"
-        >
-          <title>Fork me on GitHub</title>
-          <path d="M0 0h250v250"></path>
-          <path
-            d="M127.4 110c-14.6-9.2-9.4-19.5-9.4-19.5 3-7 1.5-11 1.5-11-1-6.2 3-2 3-2 4 4.7 2 11 2 11-2.2 10.4 5 14.8 9 16.2"
-            fill="currentColor"
-            style={{ transformOrigin: "130px 110px" }}
-            class="octo-arm"
-          ></path>
-          <path
-            d="M113.2 114.3s3.6 1.6 4.7.6l15-13.7c3-2.4 6-3 8.2-2.7-8-11.2-14-25 3-41 4.7-4.4 10.6-6.4 16.2-6.4.6-1.6 3.6-7.3 11.8-10.7 0 0 4.5 2.7 6.8 16.5 4.3 2.7 8.3 6 12 9.8 3.3 3.5 6.7 8 8.6 12.3 14 3 16.8 8 16.8 8-3.4 8-9.4 11-11.4 11 0 5.8-2.3 11-7.5 15.5-16.4 16-30 9-40 .2 0 3-1 7-5.2 11l-13.3 11c-1 1 .5 5.3.8 5z"
-            fill="currentColor"
-            class="octo-body"
-          ></path>
-        </svg>
-      </a>
-
       <div className="h-4 w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500"></div>
       <div className="flex flex-row">
         <div className="px-4 py-2">
@@ -263,6 +270,47 @@ const Landing = () => {
         </div>
 
         <div className="right-container flex flex-shrink-0 w-[30%] flex-col">
+          {recording && 
+            <React.Fragment>
+              {/* recordState defines, whether recorder is recording/paused/stopped */}
+              {(recording.recordState === "paused" || recording.recordState === "recording") && <p>Your Screencast is being recorded</p>}
+              {recording.recordState === "stopped" && 
+                <button 
+                  className="bg-blue-500 hover:bg-blue-700 text-white py-4 px-4 rounded-full"
+                  onClick={recording.recordingControllers?.startRecording}
+                >
+                  <RadioButtonCheckedIcon /> <span>Start Recording</span>
+                </button>}
+              {recording.recordState === 'paused' && <div className="flex gap-2">
+                <button 
+                  className="bg-blue-500 hover:bg-blue-700 text-white py-4 px-4 rounded-full"
+                  onClick={recording.recordingControllers?.resumeRecording}
+                >
+                  <PlayArrowIcon /> <span>Resume</span>
+                </button>
+                <button 
+                  className="bg-red-500 hover:bg-red-700 text-white py-4 px-4 rounded-full"
+                  onClick={recording.recordingControllers?.stopRecording}
+                >
+                  <RadioButtonCheckedIcon /> <span>Stop</span>
+                </button>
+              </div>}
+              {recording.recordState === 'recording' && <div className="flex gap-2">
+                <button 
+                  className="bg-blue-500 hover:bg-blue-700 text-white py-4 px-4 rounded-full"
+                  onClick={recording.recordingControllers?.pauseRecording}
+                >
+                  <PauseIcon /> <span>Pause</span>
+                </button>
+                <button 
+                  className="bg-red-500 hover:bg-red-700 text-white py-4 px-4 rounded-full"
+                  onClick={recording.recordingControllers?.stopRecording}
+                >
+                  <RadioButtonCheckedIcon /> <span>Stop</span>
+                </button>
+              </div>}
+            </React.Fragment>
+          }
           <OutputWindow outputDetails={outputDetails} />
           <div className="flex flex-col items-end">
             <CustomInput
@@ -283,8 +331,8 @@ const Landing = () => {
           {outputDetails && <OutputDetails outputDetails={outputDetails} />}
         </div>
       </div>
-      <Footer />
     </>
   );
 };
-export default Landing;
+
+export default CodeEditor;
